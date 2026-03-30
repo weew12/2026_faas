@@ -3,6 +3,7 @@ package scaling
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -31,7 +32,10 @@ const (
 	ScalingFactorLabel = "com.openfaas.scale.factor"
 )
 
+// MakeHorizontalScalingHandler 是一个中间件，用于处理水平缩放请求的路由
 func MakeHorizontalScalingHandler(next http.HandlerFunc) http.HandlerFunc {
+	// 处理水平缩放请求的路由
+	fmt.Printf("\033[32;1m horizontal scaling request\n\033[0m\n")
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Only POST is allowed", http.StatusMethodNotAllowed)

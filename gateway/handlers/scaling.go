@@ -50,6 +50,7 @@ func MakeScalingHandler(next http.HandlerFunc, scaler scaling.FunctionScaler, co
 			return
 		}
 
+		log.Printf("\033[33mScaling: \033[0m")
 		log.Printf("[Scale] function=%s.%s 0=>N timed-out after %.4fs\n",
 			functionName, namespace, res.Duration.Seconds())
 	}

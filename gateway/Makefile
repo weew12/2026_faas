@@ -13,7 +13,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 BUILDER_NAME ?= multiarch
 NODE_NAME ?= $(BUILDER_NAME)
 BUILDKIT_CONFIG ?= ./docker_buildx_config/buildkitd.toml
-PLATFORMS ?= linux/amd64,linux/arm/v7,linux/arm64
+PLATFORMS ?= linux/amd64,linux/arm64
 
 # ANSI colors
 RESET   := \033[0m

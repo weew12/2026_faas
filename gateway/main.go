@@ -39,6 +39,7 @@ func main() {
 		log.Fatalln("You must provide an external provider via 'functions_provider_url' env-var.")
 	}
 
+	fmt.Printf("\033[32;1m weew12 version\n\033[0m\n")
 	fmt.Printf("OpenFaaS Gateway - Community Edition (CE)\n"+
 		"\nVersion: %s Commit: %s\nTimeouts: read=%s\twrite=%s\tupstream=%s\nFunction provider: %s\n\n",
 		version.BuildVersion(),
