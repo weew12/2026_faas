@@ -3,6 +3,7 @@
 
 // Copyright (c) Alex Ellis 2017. All rights reserved.
 
+// Package types 定义OpenFaaS网关核心配置类型、环境变量解析逻辑与相关抽象接口，提供网关启动与运行所需的全量配置管理能力
 package types
 
 import (
@@ -13,24 +14,25 @@ import (
 	"time"
 )
 
-// OsEnv implements interface to wrap os.Getenv
+// OsEnv 封装系统环境变量获取能力，实现HasEnv接口，用于生产环境直接读取系统环境变量
 type OsEnv struct {
 }
 
-// Getenv wraps os.Getenv
+// Getenv 封装os.Getenv原生方法，获取指定key对应的环境变量值
 func (OsEnv) Getenv(key string) string {
 	return os.Getenv(key)
 }
 
-// HasEnv provides interface for os.Getenv
+// HasEnv 定义环境变量获取的抽象接口，用于解耦配置读取逻辑与系统环境变量的直接依赖，方便单元测试 mock
 type HasEnv interface {
 	Getenv(key string) string
 }
 
-// ReadConfig constitutes config from env variables
+// ReadConfig 提供网关配置的读取、解析与校验能力，核心入口为Read方法
 type ReadConfig struct {
 }
 
+// parseBoolValue 解析字符串格式的布尔配置值，仅当输入为"true"时返回true，其余所有情况均返回false
 func parseBoolValue(val string) bool {
 	if val == "true" {
 		return true
@@ -38,6 +40,10 @@ func parseBoolValue(val string) bool {
 	return false
 }
 
+// parseIntOrDurationValue 解析时间类配置，兼容两种格式：纯数字（自动识别为秒）、Go标准时长格式（如"30s"、"2m"、"1h"）
+// val: 待解析的配置字符串
+// fallback: 解析失败或输入为空时使用的默认兜底值
+// 返回值: 解析成功的时长，或解析失败时的fallback默认值
 func parseIntOrDurationValue(val string, fallback time.Duration) time.Duration {
 	if len(val) > 0 {
 		parsedVal, parseErr := strconv.Atoi(val)
@@ -53,7 +59,9 @@ func parseIntOrDurationValue(val string, fallback time.Duration) time.Duration {
 	return duration
 }
 
-// Read fetches gateway server configuration from environmental variables
+// Read 从环境变量中加载、解析并校验网关服务的全量配置
+// hasEnv: 环境变量获取接口，生产环境传入OsEnv实例，测试环境可传入mock实现
+// 返回值: 解析完成的GatewayConfig配置实例，解析/校验失败时返回对应的错误信息
 func (ReadConfig) Read(hasEnv HasEnv) (*GatewayConfig, error) {
 	cfg := GatewayConfig{
 		PrometheusHost: "prometheus",
@@ -170,74 +178,74 @@ func (ReadConfig) Read(hasEnv HasEnv) (*GatewayConfig, error) {
 	return &cfg, nil
 }
 
-// GatewayConfig provides config for the API Gateway server process
+// GatewayConfig 定义OpenFaaS API网关服务进程的全量配置项，包含HTTP、上游服务、中间件、可观测性等核心配置
 type GatewayConfig struct {
 
-	// HTTP timeout for reading a request from clients.
+	// 网关从客户端读取HTTP请求的超时时间
 	ReadTimeout time.Duration
 
-	// HTTP timeout for writing a response from functions.
+	// 网关向客户端写入函数执行HTTP响应的超时时间
 	WriteTimeout time.Duration
 
-	// UpstreamTimeout maximum duration of HTTP call to upstream URL
+	// 网关向上游函数服务发起HTTP调用的最大超时时间
 	UpstreamTimeout time.Duration
 
-	// URL for alternate functions provider.
+	// 外部函数提供商的访问URL，网关将通过该地址与函数运行时交互
 	FunctionsProviderURL *url.URL
 
-	// URL for alternate function logs provider.
+	// 外部函数日志提供商的访问URL，未配置时默认复用函数提供商URL
 	LogsProviderURL *url.URL
 
-	// Address of the NATS service. Required for async mode.
+	// NATS服务地址，异步函数调用模式必填项
 	NATSAddress *string
 
-	// Port of the NATS Service. Required for async mode.
+	// NATS服务端口，异步函数调用模式必填项
 	NATSPort *int
 
-	// The name of the NATS Streaming cluster. Required for async mode.
+	// NATS Streaming集群名称，异步函数调用模式必填项
 	NATSClusterName *string
 
-	// NATSChannel is the name of the NATS Streaming channel used for asynchronous function invocations.
+	// 用于异步函数调用的NATS Streaming通道名称
 	NATSChannel *string
 
-	// Host to connect to Prometheus.
+	// Prometheus监控服务的连接主机地址
 	PrometheusHost string
 
-	// Port to connect to Prometheus.
+	// Prometheus监控服务的连接端口
 	PrometheusPort int
 
-	// If set, reads secrets from file-system for enabling basic auth.
+	// 是否开启基础认证，开启后网关将从指定挂载路径读取密钥完成请求认证
 	UseBasicAuth bool
 
-	// SecretMountPath specifies where to read secrets from for embedded basic auth
+	// 嵌入式基础认证的密钥文件挂载路径
 	SecretMountPath string
 
-	// Enable the gateway to scale any service from 0 replicas to its configured "min replicas"
+	// 是否开启零副本扩容能力，允许网关将副本数为0的函数自动扩容到配置的最小副本数
 	ScaleFromZero bool
 
-	// MaxIdleConns with a default value of 1024, can be used for tuning HTTP proxy performance
+	// HTTP客户端全局最大空闲连接数，默认值1024，用于高并发场景下的HTTP代理性能调优
 	MaxIdleConns int
 
-	// MaxIdleConnsPerHost with a default value of 1024, can be used for tuning HTTP proxy performance
+	// HTTP客户端单目标主机最大空闲连接数，默认值1024，用于高并发场景下的HTTP代理性能调优
 	MaxIdleConnsPerHost int
 
-	// AuthProxyURL specifies URL for an authenticating proxy, disabled when blank, enabled when valid URL i.e. http://basic-auth.openfaas:8080/validate
+	// 外部认证代理URL，为空时禁用认证代理，配置有效URL时网关会将请求转发至该地址完成认证（示例值：http://basic-auth.openfaas:8080/validate）
 	AuthProxyURL string
 
-	// AuthProxyPassBody pass body to validation proxy
+	// 是否将原始请求体转发给认证代理服务
 	AuthProxyPassBody bool
 
-	// Namespace for endpoints
+	// 函数资源所在的Kubernetes命名空间
 	Namespace string
 }
 
-// UseNATS Use NATSor not
+// UseNATS 判断当前配置是否启用NATS异步函数模式，仅当NATS地址与端口均完成配置时返回true
 func (g *GatewayConfig) UseNATS() bool {
 	return g.NATSPort != nil &&
 		g.NATSAddress != nil
 }
 
-// UseExternalProvider is now required for all providers
+// UseExternalProvider 判断当前配置是否使用外部函数提供商，当前版本所有函数运行时均需配置外部提供商
 func (g *GatewayConfig) UseExternalProvider() bool {
 	return g.FunctionsProviderURL != nil
 }

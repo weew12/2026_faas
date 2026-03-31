@@ -15,7 +15,11 @@ import (
 	"github.com/openfaas/faas/gateway/version"
 )
 
-// NewHTTPClientReverseProxy proxies to an upstream host through the use of a http.Client
+// NewHTTPClientReverseProxy 创建一个基于http.Client的反向代理，用于转发请求到上游主机
+// baseURL: 上游服务的基础URL
+// timeout: 请求超时时间
+// maxIdleConns: 最大空闲连接数
+// maxIdleConnsPerHost: 每个主机的最大空闲连接数
 func NewHTTPClientReverseProxy(baseURL *url.URL, timeout time.Duration, maxIdleConns, maxIdleConnsPerHost int) *HTTPClientReverseProxy {
 	h := HTTPClientReverseProxy{
 		BaseURL: baseURL,
@@ -28,14 +32,13 @@ func NewHTTPClientReverseProxy(baseURL *url.URL, timeout time.Duration, maxIdleC
 		return http.ErrUseLastResponse
 	}
 
-	// These overrides for the default client enable re-use of connections and prevent
-	// CoreDNS from rate limiting the gateway under high traffic
+	// 这些默认客户端的覆盖配置可实现连接复用，防止高流量下CoreDNS对网关进行速率限制
 	//
-	// See also two similar projects where this value was updated:
+	// 参考两个类似项目的配置调整：
 	// https://github.com/prometheus/prometheus/pull/3592
 	// https://github.com/minio/minio/pull/5860
 
-	// Taken from http.DefaultTransport in Go 1.11
+	// 基于Go 1.11的http.DefaultTransport配置
 	h.Client.Transport = &proxyTransport{
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -55,21 +58,21 @@ func NewHTTPClientReverseProxy(baseURL *url.URL, timeout time.Duration, maxIdleC
 	return &h
 }
 
-// HTTPClientReverseProxy proxy to a remote BaseURL using a http.Client
+// HTTPClientReverseProxy 使用http.Client将请求代理到远程BaseURL
 type HTTPClientReverseProxy struct {
 	BaseURL *url.URL
 	Client  *http.Client
 	Timeout time.Duration
 }
 
-// proxyTransport is an http.RoundTripper for the reverse proxy client.
-// It ensures default headers like the `User-Agent` are set on requests.
+// proxyTransport 是反向代理客户端的http.RoundTripper实现
+// 用于确保请求设置默认头（如User-Agent）
 type proxyTransport struct {
-	// Transport is the underlying HTTP transport to use when making requests.
+	// Transport 是发起请求时使用的底层HTTP传输层
 	Transport http.RoundTripper
 }
 
-// RoundTrip implements the RoundTripper interface.
+// RoundTrip 实现RoundTripper接口，为请求设置默认User-Agent头
 func (t *proxyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if _, ok := req.Header["User-Agent"]; !ok {
 		req.Header.Set("User-Agent", fmt.Sprintf("openfaas-ce-gateway/%s", version.BuildVersion()))
