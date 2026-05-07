@@ -13,7 +13,8 @@ import (
 
 const (
 	// DefaultMinReplicas 服务的最小副本数默认值
-	DefaultMinReplicas = 1
+	// DefaultMinReplicas = 1
+	DefaultMinReplicas = 0
 
 	// DefaultMaxReplicas 服务自动扩容的最大副本数默认值
 	DefaultMaxReplicas = 50 // 函数最大副本数
